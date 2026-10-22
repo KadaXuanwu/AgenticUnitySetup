@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="DesignHub.uss" />
+    <ui:VisualElement class="hub">
+        <ui:VisualElement class="sidebar">
+            <ui:Label text="__GAME__" class="brand" />
+            <ui:Label text="Design Hub" class="brand-sub" />
+            <ui:ScrollView name="nav" class="nav" />
+        </ui:VisualElement>
+        <ui:VisualElement class="main">
+            <ui:VisualElement class="header">
+                <ui:VisualElement class="header-text">
+                    <ui:Label name="title" class="title" />
+                    <ui:Label name="path" class="path" />
+                </ui:VisualElement>
+                <ui:Button name="ping" text="Show in Project" class="ping" />
+            </ui:VisualElement>
+            <ui:Label name="play-note" class="play-note"
+                text="Playing: edits are saved, but numbers the game reads at load take effect the next time you press Play." />
+            <ui:ScrollView name="content" class="content" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

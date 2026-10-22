@@ -1,0 +1,189 @@
+/* Editor surfaces follow the editor skin; the accent is the only colour of our own. */
+
+:root {
+  --gold: rgb(232, 190, 110);
+  --gold-dim: rgba(232, 190, 110, 0.18);
+}
+
+.hub {
+  flex-grow: 1;
+  flex-direction: row;
+}
+
+.sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 16px 0 8px 0;
+  background-color: var(--unity-colors-toolbar-background);
+  border-right-width: 1px;
+  border-right-color: var(--unity-colors-default-border);
+}
+
+.brand {
+  margin: 0 16px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  -unity-font-style: bold;
+  color: var(--gold);
+}
+
+.brand-sub {
+  margin: 2px 16px 16px 16px;
+  font-size: 18px;
+  -unity-font-style: bold;
+}
+
+.nav {
+  flex-grow: 1;
+}
+
+.nav-group {
+  margin: 14px 16px 4px 16px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  -unity-font-style: bold;
+  color: var(--unity-colors-default-text);
+  opacity: 0.55;
+}
+
+.nav-item {
+  height: 28px;
+  padding: 0 16px 0 13px;
+  border-left-width: 3px;
+  border-left-color: rgba(0, 0, 0, 0);
+  -unity-text-align: middle-left;
+}
+
+.nav-item:hover {
+  background-color: var(--unity-colors-highlight-background-hover);
+}
+
+.nav-item--selected,
+.nav-item--selected:hover {
+  border-left-color: var(--gold);
+  background-color: var(--gold-dim);
+  -unity-font-style: bold;
+}
+
+.main {
+  flex-grow: 1;
+  background-color: var(--unity-colors-window-background);
+}
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  padding: 16px 20px 12px 20px;
+  border-bottom-width: 1px;
+  border-bottom-color: var(--unity-colors-default-border);
+}
+
+.header-text {
+  flex-grow: 1;
+}
+
+.title {
+  font-size: 20px;
+  -unity-font-style: bold;
+}
+
+.path {
+  margin-top: 2px;
+  opacity: 0.55;
+}
+
+.ping {
+  height: 24px;
+}
+
+.play-note {
+  display: none;
+  margin: 12px 20px 0 20px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  white-space: normal;
+  background-color: var(--gold-dim);
+  border-left-width: 3px;
+  border-left-color: var(--gold);
+}
+
+.hub--playing .play-note {
+  display: flex;
+}
+
+.cards {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 8px 12px 20px 12px;
+}
+
+.card {
+  margin: 8px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border-width: 1px;
+  border-color: var(--unity-colors-default-border);
+  background-color: var(--unity-colors-inspector_titlebar-background);
+}
+
+.card--inspector {
+  flex-grow: 1;
+  flex-basis: 380px;
+  min-width: 340px;
+}
+
+.card--sheet {
+  flex-grow: 0;
+  width: 330px;
+}
+
+.card--wide {
+  flex-grow: 1;
+  flex-basis: 100%;
+}
+
+.card-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  -unity-font-style: bold;
+  color: var(--gold);
+}
+
+.card-hint {
+  margin-bottom: 8px;
+  white-space: normal;
+  opacity: 0.6;
+}
+
+.sheet-section {
+  margin: 12px 0 4px 0;
+  font-size: 10px;
+  letter-spacing: 2px;
+  -unity-font-style: bold;
+  opacity: 0.55;
+}
+
+.sheet-row {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom-width: 1px;
+  border-bottom-color: var(--unity-colors-default-border);
+}
+
+.sheet-label {
+  flex-shrink: 1;
+  white-space: normal;
+}
+
+.sheet-value {
+  flex-shrink: 0;
+  margin-left: 12px;
+  -unity-font-style: bold;
+  -unity-text-align: middle-right;
+}
+
+.sheet-value--warn {
+  color: rgb(230, 120, 90);
+}

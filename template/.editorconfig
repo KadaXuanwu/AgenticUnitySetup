@@ -1,0 +1,37 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{json,yml,yaml,uxml,uss}]
+indent_size = 2
+
+# Unity-serialized assets are written by the editor, never by hand.
+[*.{unity,prefab,asset,mat,meta,controller,anim}]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[*.cs]
+# K&R: opening brace on the same line, braces not indented
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+csharp_indent_braces = false
+csharp_indent_switch_labels = true
+csharp_indent_case_contents = true
+
+# Explicit types, never var
+csharp_style_var_for_built_in_types = false:warning
+csharp_style_var_when_type_is_apparent = false:warning
+csharp_style_var_elsewhere = false:warning
+
+# Access modifiers everywhere
+dotnet_style_require_accessibility_modifiers = always:warning

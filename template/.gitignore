@@ -1,0 +1,14 @@
+# Unity's own ignores live in Unity/.gitignore.
+
+# Personal Claude Code overrides and worktrees. .claude/settings.json is shared and committed.
+.claude/settings.local.json
+.claude/worktrees/
+
+# Python caches of tool scripts.
+__pycache__/
+
+# FMOD Studio project: cache, unsaved changes and window layout are per machine. Its built banks (Build/, LFS) are
+# committed, so a clone plays with sound without FMOD Studio installed.
+Audio/__GAME__/.cache/
+Audio/__GAME__/.unsaved/
+Audio/__GAME__/.user/

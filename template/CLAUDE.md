@@ -1,7 +1,7 @@
 # __GAME__
 
 <One paragraph: what the game is, how many players, PvE or PvP. The designer gives it at setup.>
-Unity __UNITY__ (exact version: `Unity/ProjectSettings/ProjectVersion.txt`), 3D URP, UI Toolkit, Input System.
+Unity __UNITY__ (exact version: `Unity/ProjectSettings/ProjectVersion.txt`), __RENDER__, UI Toolkit, Input System.
 
 Repo root holds the docs; the Unity project is `Unity/`. Git runs from the root.
 

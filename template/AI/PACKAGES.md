@@ -15,6 +15,11 @@ needs it, and say so here.
 `com.coplaydev.unity-mcp` ships a runtime assembly (helpers its editor tools use, never called in the game) because it
 has no editor-only constraint. Remove the package before a public release (RELEASE.md).
 
+The package URL in `manifest.json` names a release tag (`#v<version>`). Claude Code starts the MCP server from the
+root `.mcp.json` (`uvx`, pinned `mcpforunityserver==<version>`), and the two versions must match. To update, change
+both in the same pass. **Window > MCP for Unity** can write the server into Claude Desktop's config instead of Claude
+Code's; Claude Code reads only `.mcp.json`.
+
 ## Asset Store packages
 
 Classic `.unitypackage` assets are not committed: they are large, the store serves them again, and a licence forbids
@@ -54,12 +59,22 @@ not patched. An untracked edit in a vendor folder is invisible to git and is los
 ## FMOD
 
 - **FMOD for Unity** is an Asset Store UPM package: `manifest.json` names it, and Unity fetches it for an account that
-  owns it. Version: <filled in at setup>. If installing from My Assets copies it into `Packages/` as an embedded
+  owns it. Version: <filled in at setup: the package name, its version, the FMOD version>. If installing from My Assets copies it into `Packages/` as an embedded
   package, delete that folder and let Unity re-resolve. Adding or updating any package can log an exception from FMOD's
   package event handler; it is FMOD's, harmless, and the package lands.
-- **FMOD Studio** must match the integration's minor version. Its command-line tool (`fmodstudiocl.exe`, beside
-  FMOD Studio) runs a JavaScript file on a project (`-script`) and builds banks (`-build`) headlessly, with FMOD Studio
-  closed (it locks the project).
+- **FMOD Studio** must match the integration's minor version: <filled in at setup>. Its command-line tool runs a
+  JavaScript file on a project (`-script`) and builds banks (`-build`) headlessly, with FMOD Studio closed (it locks
+  the project):
+
+  ```powershell
+  & "<filled in at setup: path to fmodstudiocl.exe>" -build Audio\__GAME__\__GAME__.fspro
+  ```
+
+- **FMOD for Unity points at the project** relative to `Unity/`: source project `../Audio/__GAME__/__GAME__.fspro`,
+  banks `../Audio/__GAME__/Build`. To set it without the setup wizard, use `execute_code` with a `SerializedObject` on
+  `FMODUnity.Settings.Instance`. Set `sourceProjectPath`, `sourceBankPath`, `HasSourceProject` and `HasPlatforms`.
+  Then call `FMODUnity.EventManager.RefreshBanks()`, and check with `FMODUnity.EditorUtils.ValidateSource`. This is
+  what the wizard's "Locate Studio Project" does. It needs built banks: build them first.
 - **The project** is `Audio/__GAME__/__GAME__.fspro`. Committed: the `.fspro`, `Metadata/` (XML), `Assets/` (the audio
   files events use, LFS), `Scripts/` and `Build/` (the banks, LFS, so a clone plays without FMOD Studio). Ignored:
   `.cache/`, `.unsaved/`, `.user/`.
@@ -67,5 +82,6 @@ not patched. An untracked edit in a vendor folder is invisible to git and is los
   `Runtime/Audio/Fmod.cs`: `Fmod.Events.<Folder>.<Event>`, `Fmod.Snapshots`, `Fmod.Buses`, `Fmod.Vcas`,
   `Fmod.Parameters`. Code never spells a path; renaming an event the game plays breaks the build.
 - **Settings** live in `Unity/Assets/Resources/FMOD/FMODStudioSettings.asset`, whitelisted in `Unity/.gitignore`;
-  `FMODStudioCache.asset` beside it and `Assets/Plugins/FMOD/` are rebuilt. FMOD's setup turns off Unity's built-in
-  audio, on purpose.
+  `FMODStudioCache.asset` beside it is rebuilt. FMOD 2.04 and later is a UPM package and puts nothing in
+  `Assets/Plugins/`. Unity's built-in audio is off (`m_DisableAudio` on `ProjectSettings/AudioManager.asset`), on
+  purpose. The setup wizard turns it off; setup without the wizard must turn it off over `execute_code`.

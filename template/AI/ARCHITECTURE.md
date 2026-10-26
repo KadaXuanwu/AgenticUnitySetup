@@ -1,6 +1,6 @@
 # Architecture
 
-Unity __UNITY__, 3D URP, UI Toolkit, Input System. The *why* behind each choice is in [DECISIONS.md](DECISIONS.md).
+Unity __UNITY__, __RENDER__, UI Toolkit, Input System. The *why* behind each choice is in [DECISIONS.md](DECISIONS.md).
 
 This file is the single source of truth for where things go. Nothing else repeats it.
 
@@ -10,7 +10,8 @@ This file is the single source of truth for where things go. Nothing else repeat
 __GAME__/                    git root
 ├── CLAUDE.md                working agreement for agents
 ├── README.md                getting started on a fresh clone
-├── .claude/settings.json    shared Claude Code permissions
+├── .claude/settings.json    shared Claude Code permissions; turns on the server in .mcp.json
+├── .mcp.json                the Unity MCP server for Claude Code
 ├── .editorconfig            C# style, enforced by the IDE
 ├── .gitattributes           LFS by file type; must sit at the root
 ├── AI/                      agent knowledge base: this file, AUTOMATION, DECISIONS, …

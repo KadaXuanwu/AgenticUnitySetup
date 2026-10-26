@@ -1,4 +1,5 @@
 {
+  "enabledMcpjsonServers": ["unityMCP"],
   "permissions": {
     "allow": [
       "Bash(dotnet build:*)",

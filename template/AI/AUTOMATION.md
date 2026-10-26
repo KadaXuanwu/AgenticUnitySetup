@@ -21,6 +21,9 @@ Climb only as far as the change requires. Rungs 1–3 run without the editor foc
   `refresh_unity` → `read_console` → tests.
 - Unity emits a `.csproj` only for an assembly that **contains scripts**. A new empty asmdef is invisible to rung 1
   until its first `.cs` lands.
+- After a package is added or removed, the csproj references stay stale (MSB3245 warnings) until Unity regenerates
+  them: `execute_code` `Unity.CodeEditor.CodeEditor.CurrentEditor.SyncAll()`. A removed assembly's `.csproj` stays on
+  disk, outside `Unity.slnx`; delete it.
 - Building while Unity is mid-regeneration gives a phantom error. Let `refresh_unity` return first.
 - Read errors only. If the .NET SDK ships an older Roslyn than Unity's analyzers need (warning `CS9057`), the analyzers
   are skipped, so rung 1 misses analyzer diagnostics that rung 2 reports.
@@ -75,7 +78,11 @@ Editor work with no tool → write an editor script, not a list of instructions.
   the event and stop: calling `InputSystem.Update()` by hand consumes the press in an update no `MonoBehaviour` sees.
   Read the result on the next round trip. Anything worth keeping belongs in a test instead.
 - **`execute_code` may compile with CodeDom (C# 6)**: write `UnityEngine.Object`, never bare `Object`, and declare
-  lambdas as `System.Action<...>` locals. It cannot call methods with `in` parameters.
+  lambdas as `System.Action<...>` locals. It cannot call methods with `in` parameters. It does not find extension
+  methods: call `UQueryExtensions.Q<Label>(root, "name", (string)null)`, not `root.Q<Label>("name")`.
+- **`execute_code` blocks deletes.** Its safety check refuses `AssetDatabase.DeleteAsset` and `MoveAssetToTrash`,
+  and Claude Code's auto mode refuses `safety_checks=false`. To delete an asset, ask the designer, or get approval for
+  that one call.
 - **An `execute_code` that times out may have crashed or hung the editor.** Before sending anything else, read
   `mcpforunity://editor/state` and wait until it answers; never queue more calls behind a timeout. Keep each call
   short.

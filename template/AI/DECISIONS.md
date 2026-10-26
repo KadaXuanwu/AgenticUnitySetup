@@ -16,9 +16,9 @@ TextMeshPro and uGUI-based Asset Store UI won't work without adding `com.unity.u
 
 ## __DATE__ — Agent knowledge lives in committed docs
 
-`CLAUDE.md`, `AI/` and `.claude/settings.json` are in git; nothing lives in machine-local memory. **Why:** a fresh
-clone on another device has to be the whole picture. **Costs:** docs have to be pruned as they go stale, hence the
-five-line cap.
+`CLAUDE.md`, `AI/`, `.claude/settings.json` and `.mcp.json` are in git; nothing lives in machine-local memory. **Why:**
+a fresh clone on another device has to be the whole picture. **Costs:** docs have to be pruned as they go stale, hence
+the five-line cap.
 
 ## __DATE__ — Asset Store packages stay out of git
 

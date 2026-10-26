@@ -14,10 +14,10 @@
 
 ### Claude Code on a fresh clone
 
-`CLAUDE.md`, `AI/` and `.claude/settings.json` are committed, so the working agreement and the knowledge base come
-with the repo. The one thing that does not travel is the Unity MCP client registration: after the project imports,
-open **Window > MCP for Unity** and let it configure your client. Without it everything still works, minus driving
-the editor headlessly.
+`CLAUDE.md`, `AI/`, `.claude/settings.json` and `.mcp.json` are committed, so the working agreement, the knowledge
+base and the Unity MCP server registration come with the repo. Claude Code starts the server with `uvx`, so install
+[uv](https://docs.astral.sh/uv/) once per machine. The server pin in `.mcp.json` must match the version of
+`com.coplaydev.unity-mcp` (AI/PACKAGES.md). Without MCP everything still works, minus driving the editor headlessly.
 
 ```bash
 dotnet build Unity/Unity.slnx -v q --nologo

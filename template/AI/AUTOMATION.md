@@ -16,6 +16,9 @@ Climb only as far as the change requires. Rungs 1–3 run without the editor foc
 
 ### Rung 1 caveats
 
+- A PostToolUse hook in `.claude/settings.json` runs rung 1 after each edit of a `.cs` file
+  (`Tools/compile-hook.py`). It is silent on a pass and shows the errors on a failure. For a file that no
+  generated `.csproj` lists yet, it skips the build and says so.
 - It compiles the `.csproj` files **Unity generates**, which are gitignored. After adding or moving a `.cs` or
   editing an `.asmdef`, a pass is a false negative until Unity regenerates them — so the real loop is edit →
   `refresh_unity` → `read_console` → tests.
@@ -139,8 +142,9 @@ How packages reach a clone is [PACKAGES.md](PACKAGES.md).
 
 | Capability | State |
 | ---------- | ----- |
-| Headless compile | **Implemented** — rung 1 |
+| Headless compile | **Implemented** — rung 1, run by a hook after each C# edit |
 | Editor compile + console over MCP | **Implemented** |
 | EditMode tests over MCP | **Implemented** — `__GAME__.Tests.EditMode` |
+| Doc rules as tests | **Implemented** — Design Hub placement, `AssetStore.json` entries |
 
 Move a row as it lands. A row that has been Planned for months is a decision to delete it.

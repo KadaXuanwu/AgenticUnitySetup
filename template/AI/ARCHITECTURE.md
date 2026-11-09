@@ -10,13 +10,15 @@ This file is the single source of truth for where things go. Nothing else repeat
 __GAME__/                    git root
 ├── CLAUDE.md                working agreement for agents
 ├── README.md                getting started on a fresh clone
-├── .claude/settings.json    shared Claude Code permissions; turns on the server in .mcp.json
+├── .claude/settings.json    shared Claude Code permissions and hooks; turns on the server in .mcp.json
 ├── .mcp.json                the Unity MCP server for Claude Code
 ├── .editorconfig            C# style, enforced by the IDE
 ├── .gitattributes           LFS by file type; must sit at the root
 ├── AI/                      agent knowledge base: this file, AUTOMATION, DECISIONS, …
 ├── Audio/__GAME__/          the FMOD Studio project; Scripts/names.js writes Fmod.cs on each bank build
 ├── Docs/                    design, written by the designer; DESIGN-DECISIONS.md, kept by the agent
+├── Tools/                   setup-machine.ps1 (Git LFS, Unity Smart Merge; once per machine), unity-mcp.py
+│                            (starts the MCP server at the package's version), compile-hook.py (rung 1 after a C# edit)
 └── Unity/                   the Unity project; open this folder in the Hub
 ```
 
@@ -38,7 +40,7 @@ Assets/__GAME__/
 ├── Runtime/                 [asmdef __GAME__.Runtime]  the game: gameplay, rendering, input, audio, UI
 │   └── Audio/               Fmod.cs (generated names), our audio code
 ├── Editor/                  [asmdef __GAME__.Editor]  the Design Hub, Asset Store restore, editor tools
-├── Tests/EditMode/          [asmdef __GAME__.Tests.EditMode]  tests with no play mode
+├── Tests/EditMode/          [asmdef __GAME__.Tests.EditMode]  tests with no play mode, and the doc rules as tests
 └── Content/
     ├── Data/                the designer's: every tunable ScriptableObject (DATA.md)
     ├── Tech/                the engineer's: world setup, budgets, wiring between assets; never in the hub

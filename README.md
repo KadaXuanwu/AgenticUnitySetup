@@ -20,8 +20,11 @@ designer.
 - **Design Hub.** One editor window that shows every number the designer tunes, by topic.
 - **Knowledge base.** `AI/` docs that the agent keeps: architecture, decisions, automation, packages, data, to-do,
   release. `Docs/DESIGN-DECISIONS.md` for every design decision.
-- **Self-verification.** A headless compile, and MCP for Unity so the agent drives the editor: compile, console, tests,
-  play mode. A list of the traps in that loop.
+- **Self-verification.** A headless compile that a hook runs after each C# edit, and MCP for Unity so the agent drives
+  the editor: compile, console, tests, play mode. MCP for Unity follows its latest stable release; no file holds a
+  version number. EditMode tests that turn doc rules into checks. A list of the traps in that loop.
+- **Guard rails.** Shared Claude Code permissions that block force pushes, hard resets, stashes and `git clean`. A
+  per-machine script that registers Unity's Smart Merge for scenes and prefabs.
 - **Audio.** FMOD for Unity, an FMOD Studio project in the repo, banks in LFS, and a Studio script that writes every
   event name as C# on each bank build.
 
@@ -30,7 +33,7 @@ designer.
 1. Install:
    - a Unity 6 editor (6.7 is the version the kit is made for),
    - [Git LFS](https://git-lfs.com) (`git lfs install` once per machine),
-   - [uv](https://docs.astral.sh/uv/) (Claude Code starts the Unity MCP server with `uvx`),
+   - [uv](https://docs.astral.sh/uv/) (Claude Code starts the Unity MCP server and the compile hook with it),
    - the .NET SDK 9 or later,
    - FMOD Studio at the minor version of the FMOD for Unity package you will install.
 2. Make an empty git repo for the new game.
@@ -41,14 +44,15 @@ designer.
 4. Open Claude Code in the repo root.
 5. Open [PROMPT.md](PROMPT.md), fill in the two lines at the top, and paste all of it as your first message.
 
-The agent copies `template/` into the repo, puts your game's name in, moves the URP template's files into place,
-installs the packages and verifies each step. It stops and asks you for each step that needs a human (listed in the
-prompt).
+The agent runs `setup.ps1` from the kit: it checks the tools, moves the Unity project into place, copies `template/`
+into the repo with your game's name in, adds MCP for Unity and prepares the machine. Then the agent moves the URP
+template's files into place, installs the packages and verifies each step. It stops and asks you for each step that
+needs a human (listed in the prompt).
 
 ## The placeholders
 
 Every `__GAME__` in `template/`, in file contents and in folder and file names, is the game's code name: one word
 in PascalCase, for example `StormHarbor`. It is also a valid C# identifier, so a template file that still has it
 compiles. `__UNITY__` is the Unity version line (from `ProjectVersion.txt`), `__DATE__` is the setup date, and
-`__RENDER__` names the template (`3D URP` or `2D URP (Universal 2D template)`). The agent replaces all four in step 1
-of the prompt.
+`__RENDER__` names the template (`3D URP` or `2D URP (Universal 2D template)`). `setup.ps1` replaces all four and
+fails if one remains.

@@ -79,14 +79,16 @@ encodes this — IDEs flag violations. Reformat Unity's script templates to matc
 
 ## Verify your work
 
-After editing any C# file:
+After each edit of a C# file, a hook (`Tools/compile-hook.py`) runs the headless compile and shows you its
+errors:
 
 ```bash
 dotnet build Unity/Unity.slnx -v q --nologo
 ```
 
 No Unity instance needed. It compiles the csprojs Unity generates, so after adding/moving a `.cs`
-or changing an `.asmdef` a pass is a false negative until Unity has regenerated them.
+or changing an `.asmdef` a pass is a false negative until Unity has regenerated them. The hook says so when no
+csproj lists the file yet.
 
 Unity MCP is connected and the editor does not need to be focused, so the real loop is:
 `refresh_unity(compile="request")` → `read_console(types=["error"])` → `run_tests(mode="EditMode")`

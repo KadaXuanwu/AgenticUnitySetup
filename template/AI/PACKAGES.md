@@ -6,8 +6,8 @@ of each we can and cannot use.
 ## Unity packages
 
 Packages are not committed. `Packages/manifest.json` and `packages-lock.json` are, and a clone restores from them. A
-git-URL package (`com.coplaydev.unity-mcp`) is pinned by commit hash in the lock file; if a silent jump ever bites,
-pin the URL to a tag with `#<tag>`.
+git-URL package (`com.coplaydev.unity-mcp`) is pinned by commit hash in the lock file, so every clone gets the same
+commit until someone updates it.
 
 Removed from the URP template at setup, because nothing uses them: <filled in at setup>. Add one back when a feature
 needs it, and say so here.
@@ -15,10 +15,16 @@ needs it, and say so here.
 `com.coplaydev.unity-mcp` ships a runtime assembly (helpers its editor tools use, never called in the game) because it
 has no editor-only constraint. Remove the package before a public release (RELEASE.md).
 
-The package URL in `manifest.json` names a release tag (`#v<version>`). Claude Code starts the MCP server from the
-root `.mcp.json` (`uvx`, pinned `mcpforunityserver==<version>`), and the two versions must match. To update, change
-both in the same pass. **Window > MCP for Unity** can write the server into Claude Desktop's config instead of Claude
-Code's; Claude Code reads only `.mcp.json`.
+MCP for Unity has no version number in any file. The package URL in `manifest.json` ends in `#main`, which is the
+latest stable release (`beta` is the pre-release branch). Claude Code starts the server from the root `.mcp.json`
+through `Tools/unity-mcp.py`: it reads the version of the installed package (`Library/PackageCache`) and starts
+`mcpforunityserver` at that version, so the package and the server always match. Before Unity has resolved the
+package (a fresh clone), it starts the latest server.
+
+To update: Package Manager > MCP for Unity > Update (or delete its entry from `packages-lock.json`), let Unity
+resolve, then restart Claude Code. Read the release notes for changed tool names and fix AUTOMATION.md in the same
+pass. **Window > MCP for Unity** can write the server into Claude Desktop's config instead of Claude Code's; Claude
+Code reads only `.mcp.json`.
 
 ## Asset Store packages
 
@@ -39,10 +45,11 @@ its Root (some ship the URP template's settings), `git checkout` ours after the 
 
 **A fresh clone can't restore itself if our code needs a vendor package to compile.** While any assembly fails, Unity
 loads no project code, so `AssetStoreRestore` never runs. Import over MCP instead: `execute_code`
-`AssetDatabase.ImportPackage(<cache file>, false)` per package. Each asks "Missing Signature" in a dialog: Import
+`UnityEditor.AssetPackage.Package.Import(<cache file>, false)` per package (the call `AssetStoreRestore` uses). Each asks "Missing Signature" in a dialog: Import
 Anyway is a human click.
 
-**Adding a package:** import it, then add its entry to `AssetStore.json`. The cache file's version is in its gzip
+**Adding a package:** import it, then add its entry to `AssetStore.json`. `AssetStoreTests` fails on an entry with a
+missing field, a `Root` that is not a folder at the `Assets/` root, or a `Probe` outside the `Root`. The cache file's version is in its gzip
 header: `python -c "import sys;b=open(sys.argv[1],'rb').read(4096);print(b[16:12+b[10]+b[11]*256])" <file>`. UPM-style
 Asset Store packages go into `manifest.json` by themselves and need no entry.
 
@@ -80,7 +87,9 @@ not patched. An untracked edit in a vendor folder is invisible to git and is los
   `.cache/`, `.unsaved/`, `.user/`.
 - **Names are generated.** Every bank build, from FMOD Studio or headless, runs `Scripts/names.js`, which writes
   `Runtime/Audio/Fmod.cs`: `Fmod.Events.<Folder>.<Event>`, `Fmod.Snapshots`, `Fmod.Buses`, `Fmod.Vcas`,
-  `Fmod.Parameters`. Code never spells a path; renaming an event the game plays breaks the build.
+  `Fmod.Parameters`. Code never spells a path; renaming an event the game plays breaks the build. If two FMOD names
+  give the same C# name ("Hit 1" and "Hit-1"), the later one gets a number (`Hit1_2`), and the top of `Fmod.cs` lists
+  each such collision.
 - **Settings** live in `Unity/Assets/Resources/FMOD/FMODStudioSettings.asset`, whitelisted in `Unity/.gitignore`;
   `FMODStudioCache.asset` beside it is rebuilt. FMOD 2.04 and later is a UPM package and puts nothing in
   `Assets/Plugins/`. Unity's built-in audio is off (`m_DisableAudio` on `ProjectSettings/AudioManager.asset`), on

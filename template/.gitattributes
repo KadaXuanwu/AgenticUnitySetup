@@ -7,6 +7,8 @@
 # and distributed under MIT License.
 
 # Define macros (only works in top-level gitattributes files — why this file sits at the repo root)
+# unityyamlmerge is Unity's Smart Merge. Git uses it only after Tools/setup-machine.ps1 registers it on this machine;
+# before that, scenes and prefabs get a plain text merge.
 [attr]lfs               filter=lfs diff=lfs merge=lfs -text
 [attr]unity-json        eol=lf linguist-language=json
 [attr]unity-yaml        merge=unityyamlmerge eol=lf linguist-language=yaml
@@ -14,10 +16,10 @@
 # Optionally collapse Unity YAML files on GitHub diffs
 # [attr]unity-yaml        merge=unityyamlmerge text linguist-language=yaml linguist-generated
 
-# Docs that many branches add lines to: a merge or rebase keeps both sides' lines.
+# Docs that many branches add lines to: a merge or rebase keeps both sides' lines. Not Docs/DESIGN-DECISIONS.md:
+# a reversal rewrites its entry there, and a union merge would keep the old entry beside the new one.
 AI/TODO.md                merge=union
 AI/DECISIONS.md           merge=union
-Docs/DESIGN-DECISIONS.md  merge=union
 
 # Unity source files
 *.cginc                 text

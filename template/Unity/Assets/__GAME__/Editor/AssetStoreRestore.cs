@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -19,18 +21,19 @@ namespace __GAME__.Editor {
         private const string ManifestPath = "AssetStore.json";
         // The only Assets/ root entry git commits; must match the whitelist in Unity/.gitignore.
         private const string OwnRoot = "Assets/__GAME__";
-        // Other Assets/ root entries that are expected: FMOD for Unity's settings (committed, whitelisted in
-        // Unity/.gitignore) and its plugins (rebuilt on every machine).
-        private static readonly string[] Expected = { OwnRoot, "Assets/Resources", "Assets/Plugins" };
+        // The other Assets/ root entry that is expected: Resources, for FMOD for Unity's settings (committed,
+        // whitelisted in Unity/.gitignore). Only its FMOD folder is committed.
+        private const string ResourcesRoot = "Assets/Resources";
+        private const string FmodResources = "Assets/Resources/FMOD";
         private const string CheckedKey = "__GAME__.AssetStoreRestore.Checked";
 
         [Serializable]
-        private sealed class Manifest {
+        internal sealed class Manifest {
             public Entry[] Packages = Array.Empty<Entry>();
         }
 
         [Serializable]
-        private sealed class Entry {
+        internal sealed class Entry {
             public int Id;
             public string Title;
             public string Publisher;
@@ -49,12 +52,43 @@ namespace __GAME__.Editor {
             EditorApplication.delayCall += Restore;
         }
 
+        internal static Manifest Load() {
+            return JsonUtility.FromJson<Manifest>(File.ReadAllText(ManifestPath)) ?? new Manifest();
+        }
+
+        // What is wrong with one AssetStore.json entry; empty when nothing is. AssetStoreTests checks every entry.
+        internal static IEnumerable<string> Problems(Entry package) {
+            string name = string.IsNullOrEmpty(package.Title) ? $"entry {package.Id}" : $"'{package.Title}'";
+            if (package.Id <= 0) {
+                yield return $"{name}: Id must be the store's package id.";
+            }
+            if (string.IsNullOrEmpty(package.Title) || string.IsNullOrEmpty(package.Publisher)
+                || string.IsNullOrEmpty(package.Version)) {
+                yield return $"{name}: Title, Publisher and Version must be filled in.";
+            }
+            if (string.IsNullOrEmpty(package.Cache) || !package.Cache.EndsWith(".unitypackage")) {
+                yield return $"{name}: Cache must be the .unitypackage file, relative to the download cache.";
+            }
+            if (string.IsNullOrEmpty(package.Root) || !package.Root.StartsWith("Assets/") || package.Root.Length <= 7
+                || package.Root.IndexOf('/', 7) >= 0 || package.Root == OwnRoot || package.Root == ResourcesRoot) {
+                yield return $"{name}: Root must be the package's own folder at the Assets/ root.";
+            } else if (string.IsNullOrEmpty(package.Probe) || !package.Probe.StartsWith(package.Root + "/")) {
+                yield return $"{name}: Probe must be a file under {package.Root}.";
+            }
+        }
+
         [MenuItem("__GAME__/Asset Store/Restore Missing")]
         private static void Restore() {
-            Manifest manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(ManifestPath));
+            Manifest manifest = Load();
             WarnUnlisted(manifest);
 
-            foreach (Entry package in manifest.Packages.Where(p => !File.Exists(p.Probe))) {
+            foreach (Entry package in manifest.Packages) {
+                foreach (string problem in Problems(package)) {
+                    Debug.LogWarning($"{ManifestPath}: {problem}");
+                }
+            }
+
+            foreach (Entry package in manifest.Packages.Where(p => !string.IsNullOrEmpty(p.Probe) && !File.Exists(p.Probe))) {
                 string cached = Path.Combine(CacheRoot(), package.Cache);
                 if (!File.Exists(cached)) {
                     Debug.LogWarning($"Asset Store package '{package.Title}' ({package.Publisher}) {package.Version} is " +
@@ -73,7 +107,7 @@ namespace __GAME__.Editor {
 
         // Vendor files we changed are force-added to git; the import just overwrote them with the originals.
         private static void OnImported(string packageName) {
-            Manifest manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(ManifestPath));
+            Manifest manifest = Load();
             Entry package = manifest.Packages.FirstOrDefault(p => Path.GetFileNameWithoutExtension(p.Cache) == packageName);
             if (package == null) {
                 return;
@@ -81,26 +115,49 @@ namespace __GAME__.Editor {
             ProcessStartInfo start = new ProcessStartInfo("git", $"checkout -- \"{package.Root}\"") {
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardError = true,
+                WorkingDirectory = Directory.GetCurrentDirectory(),
             };
-            using (Process git = Process.Start(start)) {
-                // Exit code 1 ("did not match") only means nothing under the root is patched.
-                git.WaitForExit();
+            string fix = $"Our patches under {package.Root} are not back: run `git checkout -- {package.Root}` in Unity/.";
+            try {
+                using (Process git = Process.Start(start)) {
+                    string error = git.StandardError.ReadToEnd();
+                    git.WaitForExit();
+                    // "did not match any file" only means nothing under the root is patched.
+                    if (git.ExitCode != 0 && !error.Contains("did not match")) {
+                        Debug.LogError($"git checkout failed after the import of '{package.Title}': {error.Trim()} {fix}");
+                        return;
+                    }
+                }
+            } catch (Win32Exception) {
+                Debug.LogError($"Unity cannot start git (not on the PATH Unity sees). {fix}");
+                return;
             }
             AssetDatabase.Refresh();
             Debug.Log($"Imported Asset Store package '{package.Title}' and restored our patches under {package.Root}.");
         }
 
-        // Anything at the Assets/ root that is neither ours nor listed is ignored by git and reaches no clone.
+        // Anything at the Assets/ root that is neither ours nor listed is ignored by git and reaches no clone. So is
+        // anything in Assets/Resources except FMOD's folder.
         private static void WarnUnlisted(Manifest manifest) {
-            string[] known = manifest.Packages.Select(p => p.Root).Concat(Expected).ToArray();
-            foreach (string entry in Directory.GetFileSystemEntries("Assets")) {
-                string path = entry.Replace('\\', '/');
-                if (path.EndsWith(".meta") || known.Contains(path)) {
-                    continue;
-                }
+            string[] known = manifest.Packages.Select(p => p.Root).Concat(new[] { OwnRoot, ResourcesRoot }).ToArray();
+            foreach (string path in Entries("Assets").Where(path => !known.Contains(path))) {
                 Debug.LogWarning($"{path} is not committed: move it into {OwnRoot}, or add its Asset Store package " +
                     $"to {ManifestPath}.");
             }
+            if (!Directory.Exists(ResourcesRoot)) {
+                return;
+            }
+            foreach (string path in Entries(ResourcesRoot).Where(path => path != FmodResources)) {
+                Debug.LogWarning($"{path} is not committed: only {FmodResources} is. Move it into a Resources folder " +
+                    $"under {OwnRoot}.");
+            }
+        }
+
+        private static IEnumerable<string> Entries(string folder) {
+            return Directory.GetFileSystemEntries(folder)
+                .Select(entry => entry.Replace('\\', '/'))
+                .Where(path => !path.EndsWith(".meta"));
         }
 
         private static string CacheRoot() {

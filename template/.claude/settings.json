@@ -2,15 +2,15 @@
   "enabledMcpjsonServers": ["unityMCP"],
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git show:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git pull --ff-only:*)",
+      "Bash(dotnet build *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull --ff-only *)",
       "mcp__unityMCP__refresh_unity",
       "mcp__unityMCP__read_console",
       "mcp__unityMCP__run_tests",
@@ -22,6 +22,42 @@
       "mcp__unityMCP__unity_docs",
       "mcp__unityMCP__unity_reflect"
     ],
-    "deny": []
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push * --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push * +*)",
+      "Bash(git reset --hard*)",
+      "Bash(git reset * --hard*)",
+      "Bash(git stash *)",
+      "Bash(git clean *)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git push * --force*)",
+      "PowerShell(git push -f *)",
+      "PowerShell(git push * -f)",
+      "PowerShell(git push * -f *)",
+      "PowerShell(git push * +*)",
+      "PowerShell(git reset --hard*)",
+      "PowerShell(git reset * --hard*)",
+      "PowerShell(git stash *)",
+      "PowerShell(git clean *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--no-project", "--quiet", "${CLAUDE_PROJECT_DIR}/Tools/compile-hook.py"],
+            "timeout": 300
+          }
+        ]
+      }
+    ]
   }
 }

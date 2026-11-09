@@ -37,6 +37,12 @@ feature places its numbers on a hub page in the same pass.
 **Why:** the agent compiles, tests and plays the game without a human click, with the editor unfocused. **Costs:** a
 runtime assembly in builds until the package is removed for release; modal dialogs hang it (AUTOMATION.md).
 
+## __DATE__ — MCP for Unity follows its latest stable release
+
+No file holds its version: `manifest.json` names the `main` branch, and `Tools/unity-mcp.py` starts the server at
+the installed package's version. **Why:** one place to update (Package Manager), and the server cannot drift from the
+package. **Costs:** a new release can rename tools; the lock file holds the commit until someone presses Update.
+
 ## __DATE__ — FMOD for audio
 
 **Why:** FMOD Studio shapes every sound (variety, space, mix); the game only says when and where. Generated names make

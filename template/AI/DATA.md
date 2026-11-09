@@ -19,7 +19,8 @@ A number the game reads at load takes effect at the next Play. Say so in the fie
 The Design Hub (`__GAME__ > Design Hub`, `Editor/DesignHub`) is organised by topic, not by asset: its `Pages` list puts
 `GameConfig` sections (by `[Header]`), whole config assets (by type) and balance sheet sections on pages under groups
 (Balance, Feel, …). A feature that adds a header, sheet section or config type places it on a page in the same pass —
-until then it shows under Other (Unsorted, or the asset by name), never hidden.
+until then it shows under Other (Unsorted, or the asset by name), never hidden, and `DesignHubTests` fails. A
+`[SerializeField] private` field counts the same as a public one.
 
 The balance sheet is `DesignHub.SheetSections`: by section name, the lines a config adds up to, each a label and a
 value worked out from the config. New balance numbers get a sheet line when they combine into something a designer

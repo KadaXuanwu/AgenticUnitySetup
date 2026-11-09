@@ -7,6 +7,14 @@
 # Python caches of tool scripts.
 __pycache__/
 
+# IDE and OS files, anywhere in the repo (Rider writes Unity/.idea/, VS Code Unity/.vscode/).
+.idea/
+.vscode/
+.vs/
+Thumbs.db
+desktop.ini
+.DS_Store
+
 # FMOD Studio project: cache, unsaved changes and window layout are per machine. Its built banks (Build/, LFS) are
 # committed, so a clone plays with sound without FMOD Studio installed.
 Audio/__GAME__/.cache/

@@ -13,7 +13,7 @@ namespace __GAME__.Editor {
     // One window for every asset a designer tunes, by topic: each page gathers GameConfig sections by their [Header],
     // whole assets under Content/Data by type, and the balance sheet sections that add them up. Nothing is lost when a
     // feature lands before its page does: an unplaced header or sheet section goes to Unsorted, an unplaced asset under
-    // Other. Technical numbers live in Content/Tech and never show here.
+    // Other, and DesignHubTests fails until a page names it. Technical numbers live in Content/Tech and never show here.
     [NoAutoStaticsCleanup]
     public sealed class DesignHub : EditorWindow {
         private const string DataFolder = "Assets/__GAME__/Content/Data";
@@ -63,10 +63,14 @@ namespace __GAME__.Editor {
             _content.contentContainer.AddToClassList("cards");
             _title = rootVisualElement.Q<Label>("title");
             _path = rootVisualElement.Q<Label>("path");
-            rootVisualElement.Q<Button>("ping").clicked += () =>
-                EditorGUIUtility.PingObject(AssetDatabase.LoadMainAssetAtPath(_pages.FirstOrDefault(page => page.Name == selectedPage)?.Path));
+            rootVisualElement.Q<Button>("ping").clicked += Ping;
             ShowPlaying(EditorApplication.isPlayingOrWillChangePlaymode);
             BuildNav();
+        }
+
+        private void Ping() {
+            string path = _pages.FirstOrDefault(page => page.Name == selectedPage)?.Path ?? DataFolder;
+            EditorGUIUtility.PingObject(AssetDatabase.LoadMainAssetAtPath(path));
         }
 
         private void OnEnable() {
@@ -96,8 +100,8 @@ namespace __GAME__.Editor {
             _nav.Clear();
             string group = null;
             foreach (Page page in _pages) {
-                if (page.Group != group) {
-                    group = page.Group;
+                if ((page.Group ?? "Other") != group) {
+                    group = page.Group ?? "Other";
                     _nav.Add(new Label(group.ToUpperInvariant()) { pickingMode = PickingMode.Ignore }.WithClass("nav-group"));
                 }
                 Label item = new Label(page.Name) { userData = page.Name }.WithClass("nav-item");
@@ -120,28 +124,65 @@ namespace __GAME__.Editor {
             }
         }
 
-        private void CollectPages() {
-            _pathsByType = AssetDatabase.FindAssets("t:ScriptableObject", new[] { DataFolder })
+        // Everything that shows under Other because no page names it: GameConfig headers, sheet sections and config
+        // types. DesignHubTests fails while this is not empty.
+        public static string[] Unplaced() {
+            ILookup<string, string> pathsByType = PathsByType();
+            return UnplacedHeaders().Select(header => $"GameConfig header '{header}'")
+                .Concat(UnplacedSheetSections().Select(section => $"sheet section '{section}'"))
+                .Concat(UnplacedTypes(pathsByType).Select(type => $"config type '{type.Key}' ({string.Join(", ", type)})"))
+                .ToArray();
+        }
+
+        private static ILookup<string, string> PathsByType() {
+            return AssetDatabase.FindAssets("t:ScriptableObject", new[] { DataFolder })
                 .Select(AssetDatabase.GUIDToAssetPath)
                 .OrderBy(path => path)
                 .ToLookup(path => AssetDatabase.GetMainAssetTypeAtPath(path)?.Name);
-            _pages.Clear();
-            _pages.AddRange(Pages);
+        }
 
-            string[] unsortedHeaders = typeof(GameConfig).GetFields()
+        private static string[] UnplacedHeaders() {
+            return SerializedFields(typeof(GameConfig))
                 .Select(field => field.GetCustomAttribute<HeaderAttribute>()?.header)
                 .Where(header => header != null && !Pages.Any(page => page.Headers.Contains(header)))
                 .Distinct()
                 .ToArray();
-            string[] unsortedSheet = SheetSections.Keys.Where(section => !Pages.Any(page => page.Sheet.Contains(section))).ToArray();
+        }
+
+        private static string[] UnplacedSheetSections() {
+            return SheetSections.Keys.Where(section => !Pages.Any(page => page.Sheet.Contains(section))).ToArray();
+        }
+
+        private static IEnumerable<IGrouping<string, string>> UnplacedTypes(ILookup<string, string> pathsByType) {
+            HashSet<string> placed = new HashSet<string>(Pages.SelectMany(page => page.Types)) { nameof(GameConfig) };
+            return pathsByType.Where(type => type.Key != null && !placed.Contains(type.Key));
+        }
+
+        private void CollectPages() {
+            _pathsByType = PathsByType();
+            _pages.Clear();
+            _pages.AddRange(Pages);
+
+            string[] unsortedHeaders = UnplacedHeaders();
+            string[] unsortedSheet = UnplacedSheetSections();
             if (unsortedHeaders.Length > 0 || unsortedSheet.Length > 0) {
                 _pages.Add(new Page { Group = "Other", Name = "Unsorted", Headers = unsortedHeaders, Sheet = unsortedSheet });
             }
 
-            HashSet<string> placed = new HashSet<string>(Pages.SelectMany(page => page.Types)) { nameof(GameConfig) };
-            foreach (IGrouping<string, string> type in _pathsByType.Where(type => !placed.Contains(type.Key))) {
+            foreach (IGrouping<string, string> type in UnplacedTypes(_pathsByType)) {
                 _pages.AddRange(type.Select(path => new Page { Group = "Other", Name = DisplayName(path), Types = new[] { type.Key } }));
             }
+        }
+
+        // The fields Unity serializes, base classes first: public ones and [SerializeField] private ones.
+        private static IEnumerable<FieldInfo> SerializedFields(Type type) {
+            if (type == null || type == typeof(ScriptableObject)) {
+                return Enumerable.Empty<FieldInfo>();
+            }
+            return SerializedFields(type.BaseType).Concat(
+                type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                    .Where(field => (field.IsPublic || field.IsDefined(typeof(SerializeField)))
+                        && !field.IsInitOnly && !field.IsDefined(typeof(NonSerializedAttribute))));
         }
 
         private void Show(Page page) {
@@ -181,10 +222,13 @@ namespace __GAME__.Editor {
             SerializedObject serialized = new SerializedObject(asset);
             SerializedProperty field = serialized.GetIterator();
             field.NextVisible(true);
+            Dictionary<string, FieldInfo> fields = SerializedFields(asset.GetType())
+                .GroupBy(info => info.Name)
+                .ToDictionary(group => group.Key, group => group.Last());
             string header = null;
             while (field.NextVisible(false)) {
-                header = asset.GetType().GetField(field.name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    ?.GetCustomAttribute<HeaderAttribute>()?.header ?? header;
+                header = (fields.TryGetValue(field.name, out FieldInfo info) ? info.GetCustomAttribute<HeaderAttribute>()?.header : null)
+                    ?? header;
                 if (headers == null || headers.Contains(header)) {
                     card.Add(new PropertyField(field.Copy()));
                 }

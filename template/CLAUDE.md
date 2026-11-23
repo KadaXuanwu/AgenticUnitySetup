@@ -59,7 +59,7 @@ plays or feels — you can't judge that.
 | [AI/GLOSSARY.md](AI/GLOSSARY.md) | before you write any text — the game terms, one meaning each |
 | [AI/ARCHITECTURE.md](AI/ARCHITECTURE.md) | anything structural — where code goes, which assembly, conventions |
 | [AI/DATA.md](AI/DATA.md) | adding a tunable number — the configs and the Design Hub |
-| [AI/AUTOMATION.md](AI/AUTOMATION.md) | verifying your own work, Unity MCP, what's automated and what isn't |
+| [AI/AUTOMATION.md](AI/AUTOMATION.md) | verifying your own work, the Unity CLI, what's automated and what isn't |
 | [AI/PACKAGES.md](AI/PACKAGES.md) | Unity and Asset Store packages, FMOD — restoring, adding, patching |
 | [AI/DECISIONS.md](AI/DECISIONS.md) | before proposing a different structure — the answer may be in here |
 | [AI/TODO.md](AI/TODO.md) | picking up work, or leaving some open — general tasks, and what waits on me |
@@ -90,9 +90,10 @@ No Unity instance needed. It compiles the csprojs Unity generates, so after addi
 or changing an `.asmdef` a pass is a false negative until Unity has regenerated them. The hook says so when no
 csproj lists the file yet.
 
-Unity MCP is connected and the editor does not need to be focused, so the real loop is:
-`refresh_unity(compile="request")` → `read_console(types=["error"])` → `run_tests(mode="EditMode")`
-→ `get_test_job`. Full ladder and tool map in AUTOMATION.md.
+The Unity CLI (`unity`) drives the open editor, which does not need to be focused, so the real loop is:
+`unity recompile` → `unity command console get -- --level error` → `unity command test run --detach` →
+`unity job wait <job id>`. From the repo root, pass `--project-path Unity`. Full ladder and command map in
+AUTOMATION.md.
 
 Logic that does not need a scene gets an EditMode test.
 
@@ -101,7 +102,7 @@ Logic that does not need a scene gets an EditMode test.
 You should be able to verify your own work instead of handing me a checklist of clicks. Given two
 ways to build something, take the one a headless tool can read and write.
 
-- Editor work needed → drive it over Unity MCP, or write an editor script. Don't describe the
+- Editor work needed → drive it with the Unity CLI, or write an editor script. Don't describe the
   clicks.
 - Prefer the shape a headless tool can author over the one only a human can click together —
   UXML over prefab hierarchies, data in assets over values typed into scene objects.

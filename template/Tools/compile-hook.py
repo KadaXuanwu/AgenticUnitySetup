@@ -48,7 +48,7 @@ def main():
         return 0
     if not listed(path):
         print("Rung 1 skipped: no generated .csproj lists " + os.path.basename(path) + " yet. "
-              "Run refresh_unity, then read_console (AI/AUTOMATION.md, rung 1 caveats).", file=sys.stderr)
+              "Run unity recompile, then read the console (AI/AUTOMATION.md, rung 1 caveats).", file=sys.stderr)
         return 2
     try:
         build = subprocess.run(

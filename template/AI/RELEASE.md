@@ -5,8 +5,8 @@ item the moment something is deferred to release; tick it only when it is true o
 
 ## Build
 
-- [ ] Remove `com.coplaydev.unity-mcp`: its runtime assembly ships in every build (PACKAGES.md). Agents lose the
-  editor connection, so only on the release branch or build machine.
+- [ ] `Unity.Pipeline.Attributes` and `Newtonsoft.Json` (from `com.unity.pipeline`) are out of the player, or
+  accepted: names only, no code that runs (PACKAGES.md). Keep the package, so agents keep the editor connection.
 - [ ] Asset Store packages restored on the build machine from `Unity/AssetStore.json`; they are not in git
   (PACKAGES.md).
 - [ ] Developer tools (debug overlays, cheat keys) out of player builds.

@@ -8,7 +8,7 @@ Does the mechanical part of the kit's setup in a new game repo (PROMPT.md, "Befo
 3. Reads the Unity version and which URP template made the project.
 4. Copies template/ into the repo and replaces __GAME__, __UNITY__, __DATE__ and __RENDER__, in file contents and
    in folder and file names. Then it checks that no placeholder remains.
-5. Adds MCP for Unity (latest stable release, no version pin) to Unity/Packages/manifest.json.
+5. Adds com.unity.pipeline with the Unity CLI (`unity pipeline install`), so the CLI can drive the open editor.
 6. Runs Tools/setup-machine.ps1 (Git LFS, Unity Smart Merge).
 
 It prints what it found and what is left, one line each. Runs in Windows PowerShell 5.1 and later.
@@ -35,9 +35,6 @@ $Kit = $PSScriptRoot
 $Template = Join-Path $Kit 'template'
 $Repo = (Resolve-Path -LiteralPath $Repo).Path
 $Unity = Join-Path $Repo 'Unity'
-$McpPackage = 'com.coplaydev.unity-mcp'
-# The main branch is MCP for Unity's latest stable release; beta is its pre-release branch.
-$McpUrl = 'https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main'
 $Utf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Stop-Setup([string[]]$Lines) {
@@ -96,8 +93,11 @@ if ($null -eq (Invoke-Native 'git' @('-C', $Repo, 'rev-parse', '--show-toplevel'
 if ($null -eq (Invoke-Native 'git' @('lfs', 'version'))) {
     $problems.Add('Git LFS is missing. Tell the designer to install it from https://git-lfs.com.')
 }
-if ($null -eq (Invoke-Native 'uvx' @('--version'))) {
-    $problems.Add('uv is missing (the Unity MCP server runs through it). Tell the designer to install it from https://docs.astral.sh/uv/.')
+if ($null -eq (Invoke-Native 'uv' @('--version'))) {
+    $problems.Add('uv is missing (the compile hook runs through it). Tell the designer to install it from https://docs.astral.sh/uv/.')
+}
+if ($null -eq (Invoke-Native 'unity' @('--version'))) {
+    $problems.Add('The Unity CLI (unity) is missing. Tell the designer to install it: irm https://unity.com/install.ps1 | iex')
 }
 $sdks = Invoke-Native 'dotnet' @('--list-sdks')
 $newestSdk = 0
@@ -206,18 +206,15 @@ if ($left.Count -gt 0) {
 }
 Write-Output "Copied the template: $($written.Count) files."
 
-# 5. MCP for Unity
-if ($manifest -match ('"' + [regex]::Escape($McpPackage) + '"')) {
-    Write-Output "MCP for Unity: already in manifest.json, left as it is."
+# 5. The Unity CLI's package
+if ($manifest -match '"com\.unity\.pipeline"') {
+    Write-Output 'com.unity.pipeline: already in manifest.json, left as it is.'
 } else {
-    $dependencies = [regex]::Match($manifest, '"dependencies"\s*:\s*\{')
-    if (-not $dependencies.Success) {
-        Stop-Setup @('Unity/Packages/manifest.json has no "dependencies" object.')
+    $installed = Invoke-Native 'unity' @('pipeline', 'install', '--project-path', $Unity, '--non-interactive')
+    if ($null -eq $installed) {
+        Stop-Setup @("unity pipeline install failed. Run it by hand to see why: unity pipeline install --project-path `"$Unity`"")
     }
-    $newline = if ($manifest.Contains("`r`n")) { "`r`n" } else { "`n" }
-    $entry = $newline + '    "' + $McpPackage + '": "' + $McpUrl + '",'
-    Write-Text $manifestPath $manifest.Insert($dependencies.Index + $dependencies.Length, $entry)
-    Write-Output "MCP for Unity: added to manifest.json ($McpUrl)."
+    Write-Output 'com.unity.pipeline: added to manifest.json (unity pipeline install).'
 }
 
 # 6. This machine

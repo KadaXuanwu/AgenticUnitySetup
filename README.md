@@ -20,9 +20,9 @@ designer.
 - **Design Hub.** One editor window that shows every number the designer tunes, by topic.
 - **Knowledge base.** `AI/` docs that the agent keeps: architecture, decisions, automation, packages, data, to-do,
   release. `Docs/DESIGN-DECISIONS.md` for every design decision.
-- **Self-verification.** A headless compile that a hook runs after each C# edit, and MCP for Unity so the agent drives
-  the editor: compile, console, tests, play mode. MCP for Unity follows its latest stable release; no file holds a
-  version number. EditMode tests that turn doc rules into checks. A list of the traps in that loop.
+- **Self-verification.** A headless compile that a hook runs after each C# edit, and Unity's own CLI so the agent
+  drives the open editor: compile, console, tests, play mode. EditMode tests that turn doc rules into checks. A list
+  of the traps in that loop.
 - **Guard rails.** Shared Claude Code permissions that block force pushes, hard resets, stashes and `git clean`. A
   per-machine script that registers Unity's Smart Merge for scenes and prefabs.
 - **Audio.** FMOD for Unity, an FMOD Studio project in the repo, banks in LFS, and a Studio script that writes every
@@ -33,7 +33,8 @@ designer.
 1. Install:
    - a Unity 6 editor (6.7 is the version the kit is made for),
    - [Git LFS](https://git-lfs.com) (`git lfs install` once per machine),
-   - [uv](https://docs.astral.sh/uv/) (Claude Code starts the Unity MCP server and the compile hook with it),
+   - the Unity CLI (`irm https://unity.com/install.ps1 | iex` in PowerShell),
+   - [uv](https://docs.astral.sh/uv/) (Claude Code runs the compile hook with it),
    - the .NET SDK 9 or later,
    - FMOD Studio at the minor version of the FMOD for Unity package you will install.
 2. Make an empty git repo for the new game.
@@ -45,7 +46,7 @@ designer.
 5. Open [PROMPT.md](PROMPT.md), fill in the two lines at the top, and paste all of it as your first message.
 
 The agent runs `setup.ps1` from the kit: it checks the tools, moves the Unity project into place, copies `template/`
-into the repo with your game's name in, adds MCP for Unity and prepares the machine. Then the agent moves the URP
+into the repo with your game's name in, adds the Unity CLI's package and prepares the machine. Then the agent moves the URP
 template's files into place, installs the packages and verifies each step. It stops and asks you for each step that
 needs a human (listed in the prompt).
 

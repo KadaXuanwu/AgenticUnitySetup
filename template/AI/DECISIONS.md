@@ -16,7 +16,7 @@ TextMeshPro and uGUI-based Asset Store UI won't work without adding `com.unity.u
 
 ## __DATE__ — Agent knowledge lives in committed docs
 
-`CLAUDE.md`, `AI/`, `.claude/settings.json` and `.mcp.json` are in git; nothing lives in machine-local memory. **Why:**
+`CLAUDE.md`, `AI/` and `.claude/settings.json` are in git; nothing lives in machine-local memory. **Why:**
 a fresh clone on another device has to be the whole picture. **Costs:** docs have to be pruned as they go stale, hence
 the five-line cap.
 
@@ -32,16 +32,12 @@ only the latest version, so an old pin can't be reproduced unless its `.unitypac
 **Why:** the designer balances without reading code, and finds every number by topic in one window. **Costs:** each
 feature places its numbers on a hub page in the same pass.
 
-## __DATE__ — MCP for Unity is the editor bridge
+## __DATE__ — The Unity CLI drives the editor
 
-**Why:** the agent compiles, tests and plays the game without a human click, with the editor unfocused. **Costs:** a
-runtime assembly in builds until the package is removed for release; modal dialogs hang it (AUTOMATION.md).
-
-## __DATE__ — MCP for Unity follows its latest stable release
-
-No file holds its version: `manifest.json` names the `main` branch, and `Tools/unity-mcp.py` starts the server at
-the installed package's version. **Why:** one place to update (Package Manager), and the server cannot drift from the
-package. **Costs:** a new release can rename tools; the lock file holds the commit until someone presses Update.
+The project has `com.unity.pipeline`; an agent runs `unity` in a shell (AUTOMATION.md). Not MCP for Unity, and not
+`unity mcp`. **Why:** the agent compiles, tests and plays the game without a human click, with the editor unfocused,
+with Unity's own tool and no MCP server or tool schemas in context. **Costs:** no command answers a dialog yet; a
+`script eval` waits 30 s unless the command raises it; the CLI is installed once per machine.
 
 ## __DATE__ — FMOD for audio
 

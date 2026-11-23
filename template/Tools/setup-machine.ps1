@@ -6,7 +6,8 @@ Prepares this machine for the repo. Run it once per machine, and again after a U
 - Turns on Git LFS for this user.
 - Registers Unity's Smart Merge (UnityYAMLMerge) in this repo's git config, so scenes and prefabs merge as Unity
   YAML. .gitattributes names the driver; without this step git merges them as plain text.
-- Checks the tools that the agent needs: uv (the Unity MCP server) and the .NET SDK 9 or later (the headless compile).
+- Checks the tools that the agent needs: the Unity CLI (drives the editor), uv (the compile hook) and the .NET SDK 9
+  or later (the headless compile).
 
 It changes only this repo's .git/config and the user's Git LFS hooks. Runs in Windows PowerShell 5.1 and later.
 
@@ -108,8 +109,14 @@ if (-not (Test-Path -LiteralPath $versionFile)) {
 }
 
 # Agent tools
-if ($null -eq (Invoke-Native 'uvx' @('--version'))) {
-    $problems.Add('uv is missing (Claude Code starts the Unity MCP server with it). Install it from https://docs.astral.sh/uv/.')
+$unityCli = Invoke-Native 'unity' @('--version')
+if ($null -eq $unityCli) {
+    $problems.Add('The Unity CLI (unity) is missing (the agent drives the editor with it). Install it: irm https://unity.com/install.ps1 | iex')
+} else {
+    Write-Output "Unity CLI: $unityCli found."
+}
+if ($null -eq (Invoke-Native 'uv' @('--version'))) {
+    $problems.Add('uv is missing (Claude Code runs the compile hook with it). Install it from https://docs.astral.sh/uv/.')
 } else {
     Write-Output 'uv: found.'
 }

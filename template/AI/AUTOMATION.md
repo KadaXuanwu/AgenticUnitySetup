@@ -10,9 +10,11 @@ Climb only as far as the change requires. Rungs 1–3 run without the editor foc
 | # | Check | Command | Catches |
 | - | ----- | ------- | ------- |
 | 1 | Compile | `dotnet build Unity/Unity.slnx -v q --nologo` | syntax, types, missing asmdef references |
-| 2 | Editor compile + console | `refresh_unity(compile="request")` then `read_console(types=["error"])` | the same through Unity's compiler, plus asset-import errors |
-| 3 | EditMode tests | `run_tests(mode="EditMode")` then `get_test_job` | logic that needs no scene |
-| 4 | Play it | `manage_editor(action="play")`, read state with `execute_code` | wiring, scene setup |
+| 2 | Editor compile + console | `unity recompile` (each error with its file and line; exit code 6 when one is there), then `unity command console get -- --level error --tail 20` | the same through Unity's compiler, plus asset-import errors |
+| 3 | EditMode tests | `unity command test run --detach`, then `unity job wait <job id>` | logic that needs no scene |
+| 4 | Play it | `unity command editor.playmode start`, read state with `unity command script eval` | wiring, scene setup |
+
+From the repo root, pass `--project-path Unity` to each `unity` command.
 
 ### Rung 1 caveats
 
@@ -21,99 +23,115 @@ Climb only as far as the change requires. Rungs 1–3 run without the editor foc
   generated `.csproj` lists yet, it skips the build and says so.
 - It compiles the `.csproj` files **Unity generates**, which are gitignored. After adding or moving a `.cs` or
   editing an `.asmdef`, a pass is a false negative until Unity regenerates them — so the real loop is edit →
-  `refresh_unity` → `read_console` → tests.
+  `unity recompile` → `console get` → tests.
 - Unity emits a `.csproj` only for an assembly that **contains scripts**. A new empty asmdef is invisible to rung 1
   until its first `.cs` lands.
 - After a package is added or removed, the csproj references stay stale (MSB3245 warnings) until Unity regenerates
-  them: `execute_code` `Unity.CodeEditor.CodeEditor.CurrentEditor.SyncAll()`. A removed assembly's `.csproj` stays on
-  disk, outside `Unity.slnx`; delete it.
-- Building while Unity is mid-regeneration gives a phantom error. Let `refresh_unity` return first.
+  them: a `script eval` of `Unity.CodeEditor.CodeEditor.CurrentEditor.SyncAll(); return 0;`. A removed assembly's
+  `.csproj` stays on disk, outside `Unity.slnx`; delete it.
+- Building while Unity is mid-regeneration gives a phantom error. Let `unity recompile` return first.
 - Read errors only. If the .NET SDK ships an older Roslyn than Unity's analyzers need (warning `CS9057`), the analyzers
   are skipped, so rung 1 misses analyzer diagnostics that rung 2 reports.
 
-## Unity MCP tool map
+## Unity CLI command map
 
-The editor is scriptable over MCP for Unity (`com.coplaydev.unity-mcp`) and does not need focus. Reach for these
-before describing manual steps.
+The editor is scriptable with the Unity CLI (`unity`, Unity's own tool) and does not need focus. The CLI reaches the
+open editor through the `com.unity.pipeline` package in the project. Reach for these before describing manual steps.
 
-| Need | Tool |
-| ---- | ---- |
-| recompile after editing C# | `refresh_unity(compile="request", mode="force")` |
-| compile errors / play-session logs | `read_console(action="get", types=["error"])` |
-| run tests | `run_tests` → `get_test_job` |
-| scenes, hierarchy, components | `manage_scene`, `manage_gameobject`, `manage_components` |
-| prefabs | `manage_prefabs` |
-| assets and ScriptableObjects | `manage_asset`, `manage_scriptable_object` |
-| UXML / USS | `manage_ui` |
-| enter/exit play mode | `manage_editor(action="play"/"stop")` |
-| check a Unity API before using it | `unity_reflect`, `unity_docs` |
-| anything with no tool | `execute_code` (arbitrary editor C#) |
-| several of the above at once | `batch_execute` |
+| Need | Command |
+| ---- | ------- |
+| is the editor there and ready | `unity status` (`--until-ready` waits) |
+| recompile after editing C# | `unity recompile` |
+| compile errors / play-session logs | `unity command console get -- --level error --tail 20`; counts only: `unity command console status` |
+| run tests | `unity command test run --detach` → `unity job wait <job id>`; some only: `-- --filter <part of a name>` |
+| scenes, hierarchy, components | `unity command scene …`, `gameobject …`, `component …` |
+| prefabs | `unity command prefab …` |
+| assets | `unity command asset …` |
+| a menu item | `unity command editor invoke_menu -- --path "<menu path>"` |
+| enter/exit play mode | `unity command editor.playmode start` / `stop` |
+| a picture of the game or of an editor window | `unity command capture game_view …` / `capture editor_window …` |
+| anything with no command | `unity command script eval '<C#>'` (arbitrary editor C#; `return` gives the value back) |
 
-Editor work with no tool → write an editor script, not a list of instructions.
+- The commands come from the package: `unity command --detail compact` lists them, `unity command --query <word>`
+  finds one, and `unity command <group> <name> --help` gives one command's parameters. Read them there, not from
+  memory. Where Unity's guide names a command that this list does not have, the list is right.
+- A command's own flags go after `--`; before it the CLI takes a flag of the same name for itself (`--timeout`).
+  `--result-only` prints only the answer, as JSON.
+- Unity's own guide for agents: `unity skill show`, with `--list` for its other files and `--path references/<file>`
+  for one (`playmode-verification-loop.md` is the play check).
+- No command checks a Unity API before you use it: reflect on the type in a `script eval`.
+- UXML and USS are text: edit the files.
+
+Editor work with no command → write an editor script, not a list of instructions.
 
 ### Gotchas
 
-- **The console keeps errors from an earlier compile.** `read_console(action="clear")` before a refresh whose result
-  matters, or a fixed error reads as still there. A test run right after a compile error runs the last assembly that
-  built.
-- **More than one Unity editor open** → MCP errors until `set_active_instance` pins this one
-  (`mcpforunity://instances` lists them; pin by the project path).
-- **The first MCP call after a package resolve or domain reload fails** with a socket error. Repeat the call once.
-- **Editing the open scene's `.unity` file on disk**, git included (revert, checkout, reset), makes Unity ask "reload
-  scene?" in a modal dialog, and every MCP call hangs until a human clicks it. Change the open scene through MCP, then
-  `manage_scene` save. A scene that isn't open is fine to edit as text, so open another scene over MCP before git
-  touches the open one.
-- **Importing an unsigned `.unitypackage`** (most Asset Store packages) opens a "Missing Signature" modal, one per
-  package, and MCP calls hang until a human clicks Import Anyway. Never import one unattended.
-- `read_console` returns entries since the console was last cleared. **Clear on Play** wipes them — turn it off to
-  read a play session's logs afterwards.
-- **An unfocused editor does not tick play mode** unless Run In Background is on — `Time.frameCount` stays at 1 and
-  everything looks frozen. The editor still stalls between MCP round trips, so compare state across three reads, not
-  two.
+- **The console keeps the entries of earlier work.** `unity command console status` gives a `cursor`: note it before a
+  step, and read with `unity command console get -- --level error --since <cursor>` after it. `unity recompile`
+  answers with that compile's own errors. A test run right after a compile error runs the last assembly that built.
+  A failed command also writes an error to the console. Never `console clear`.
+- **Compile errors at editor start put Unity in Safe Mode**, and the package does not load: no `unity command`
+  connects. `unity status` lists the errors. Fix them with rung 1, then `unity recompile`.
+- **More than one Unity editor open**: a command that names no project takes any editor that answers. Name yours with
+  `--project-path <repo>/Unity`, or with `UNITY_PROJECT_PATH` in the environment.
+- **A dialog blocks the editor, and no command answers it** (CLI 1.0.1, package 1.0.0). `unity status` shows
+  `starting`; with `--format json` it names the dialog under `blockedBy`. Every other command fails at once with exit
+  code 18 and names the dialog and its buttons. Ask the designer to click it. Never open one:
+  - **Git that changes the open scene's `.unity` file** (revert, checkout, reset) makes Unity ask "reload scene?".
+    Change the open scene with `unity command script eval` (then `EditorSceneManager.SaveScene`) instead. A scene that
+    is not open is fine to edit as text, so open another one (`unity command scene open -- --path <scene>`) before
+    git touches the open one.
+  - **Importing an unsigned `.unitypackage`** (most Asset Store packages) opens "Missing Signature", one for each
+    package. Never import one unattended.
+  - `EditorUtility.DisplayDialog` in code that a command runs, also on `EditorApplication.delayCall`.
+- **`script eval` is a C# script:** statements, with a `return` for the value that comes back. It takes modern C#
+  and methods with `in` parameters. More than a line goes in a file under `Unity/Temp`, passed with
+  `-- --file Temp/<name>.cs`: the path is from the project folder. Bash keeps a `"` inside `'...'`; Windows
+  PowerShell 5.1 drops it, so use a file there.
+- **`script eval` can do anything, deletes included**, and no permission rule allows it: Claude Code asks for each
+  call. Ask the designer before an eval deletes or moves assets.
+- **A `script eval` waits 30 s.** Then the command ends with exit code 14, and the code may still run in the editor.
+  For longer code, raise the wait: `unity command script eval '<C#>' --timeout 120`. After a timeout, run
+  `unity status --until-ready` before you send anything else; never queue more commands behind a timeout. Keep each
+  call short.
+- **The editor answers nothing while it reloads** (after a compile, a package change, the start of play mode): "No
+  Pipeline instance found". `unity status --until-ready` waits. After a package change the reload starts some seconds
+  late, so wait a little first. Before `test run --detach`, wait until `unity status` shows `ready`: a run sent in
+  the reload can start and print no job id. If it prints none, do not send it again; `unity command test status`
+  says when it ends.
+- **`unity recompile` can compile without the files git or a shell wrote** (after a rebase, for example). Check the
+  time of the assembly's DLL in `Library/ScriptAssemblies/`. If it did not change, run a `script eval` of
+  `AssetDatabase.ImportAsset(<path>, ImportAssetOptions.ForceUpdate)` for each changed file, then `unity recompile`.
+- **An unfocused editor does not tick play mode by itself**, and a screenshot of a frozen game looks like a live one.
+  Before `editor.playmode start`, run `unity command editor set_auto_tick`. After the start, run
+  `unity status --until-ready`, then prove that the frames advance:
+  `unity command job wait -- --condition '{"member":"UnityEngine.Time.frameCount","op":"changed"}' --timeout 10`
+  must answer `"met": true`. After `editor.playmode stop`, run `unity command editor set_auto_tick -- --enabled false`.
 - **Test tweaks leak into project settings.** A `Time.timeScale` left changed when play stops is saved into
   `TimeManager.asset` — a shipped game at 8× speed. Reset it, then `git diff Unity/ProjectSettings/` before committing.
 - **Read the console after the thing under test has happened** — speed it up with `Time.timeScale` and read again
   once it has.
 - **Synthetic key presses need their own device.** Injecting into `Keyboard.current` is unreliable.
   `InputSystem.AddDevice<Keyboard>()`, queue state on *that*, remove it when done. Mouse and keyboard only count while
-  the Game view has focus, which it hasn't over MCP: press the gamepad bindings of an added `Gamepad` instead. Queue
-  the event and stop: calling `InputSystem.Update()` by hand consumes the press in an update no `MonoBehaviour` sees.
-  Read the result on the next round trip. Anything worth keeping belongs in a test instead.
-- **`execute_code` may compile with CodeDom (C# 6)**: write `UnityEngine.Object`, never bare `Object`, and declare
-  lambdas as `System.Action<...>` locals. It cannot call methods with `in` parameters. It does not find extension
-  methods: call `UQueryExtensions.Q<Label>(root, "name", (string)null)`, not `root.Q<Label>("name")`.
-- **`execute_code` blocks deletes.** Its safety check refuses `AssetDatabase.DeleteAsset` and `MoveAssetToTrash`,
-  and Claude Code's auto mode refuses `safety_checks=false`. To delete an asset, ask the designer, or get approval for
-  that one call.
-- **An `execute_code` that times out may have crashed or hung the editor.** Before sending anything else, read
-  `mcpforunity://editor/state` and wait until it answers; never queue more calls behind a timeout. Keep each call
-  short.
-- **The bridge can vanish for a few seconds after a test run** (`No Unity Editor instances found`). Wait and re-read
-  `mcpforunity://instances`. During a long test run `get_test_job` can answer "Unknown job_id": `set_active_instance`
-  again, wait, and read `mcpforunity://editor/state` before starting another run.
-- **Play mode can end without telling you**: reads then return frozen edit-mode values. If `Time.frameCount` stops
-  advancing between reads, `stop` and `play` again.
-- **The first `execute_code` right after `play` can run before `Awake`.** Check for null and call again.
-- **Play time barely advances between round trips.** To watch something that takes seconds, set `Time.timeScale`
-  low, wait in the shell, screenshot, then reset it. To act every frame, add a lambda to `EditorApplication.update` in
-  `execute_code` that removes itself when done.
-- **`manage_camera(action="screenshot")` only writes inside the project** — pass `output_folder="Temp/Screenshots"`
-  so nothing lands in `Assets/`.
-- **Screenshotting an editor window** (the Design Hub): reading screen pixels captures whatever app sits on top. Grab
-  the window itself: reflect `EditorWindow.m_Parent`, call its `GrabPixels(RenderTexture, Rect)`, `ReadPixels`, and flip
-  rows — the result is upside down. Open or switch the page in one `execute_code` call and grab in the next.
-- **GPU ms per render pass** (no profiler window): in play mode, one `execute_code` sets `Camera.main.targetTexture` to
+  the Game view has focus, which it has not for a command: press the gamepad bindings of an added `Gamepad` instead.
+  Queue the event and stop: calling `InputSystem.Update()` by hand consumes the press in an update no `MonoBehaviour`
+  sees. Read the result with the next command. Anything worth keeping belongs in a test instead.
+- **Play mode can end without telling you**: reads then return frozen edit-mode values.
+  `unity command editor status` gives `playMode`; if it reads `stopped`, start again.
+- **The first `script eval` right after the start of play can run before `Awake`.** Check for null and call again.
+- **To watch something that takes seconds**, set `Time.timeScale` low, wait in the shell, take the picture, then
+  reset it. To act every frame, add a lambda to `EditorApplication.update` in a `script eval` that removes itself
+  when done.
+- **A picture of the game:** `unity command capture game_view -- --output-path Temp/Screenshots/<name>.png`. The path
+  is from the project folder, so nothing lands in `Assets/`. It needs no focus.
+- **A picture of an editor window** (the Design Hub): `unity command editor invoke_menu -- --path "__GAME__/Design Hub"`
+  opens it, and `unity command capture editor_window -- --window "Design Hub" --output-path …` takes it, with no focus.
+  Switch the page in one `script eval` and capture in the next command, or the layout is half done.
+- **GPU ms per render pass** (no profiler window): in play mode, one `script eval` sets `Camera.main.targetTexture` to
   a 1920×1080 `RenderTexture`, enables `Sampler.Get("<URP pass name>").GetRecorder()` (`Sampler.GetNames` lists them)
   and adds an `EditorApplication.update` lambda that sums `gpuElapsedNanoseconds`, then parks the result in
   `AppDomain.CurrentDomain.SetData`; read it back a few seconds later. Interleave configs: the GPU's clocks drift between
   runs.
-
-## Unity's own agent tooling
-
-Unity ships its own CLI (`unity`), an MCP server over it, and agent plugins. MCP for Unity stays the editor bridge
-until Unity's tools have: play mode that ticks with the editor unfocused, an `eval` past C# 6, and survival across a
-recompile. Check again on each Unity update, beside MCP for Unity on a branch.
 
 ## Does it survive a clone?
 
@@ -143,8 +161,8 @@ How packages reach a clone is [PACKAGES.md](PACKAGES.md).
 | Capability | State |
 | ---------- | ----- |
 | Headless compile | **Implemented** — rung 1, run by a hook after each C# edit |
-| Editor compile + console over MCP | **Implemented** |
-| EditMode tests over MCP | **Implemented** — `__GAME__.Tests.EditMode` |
+| Editor compile + console with the Unity CLI | **Implemented** |
+| EditMode tests with the Unity CLI | **Implemented** — `__GAME__.Tests.EditMode` |
 | Doc rules as tests | **Implemented** — Design Hub placement, `AssetStore.json` entries |
 
 Move a row as it lands. A row that has been Planned for months is a decision to delete it.

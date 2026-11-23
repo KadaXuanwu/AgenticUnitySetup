@@ -16,10 +16,10 @@ anything you write: the repo must stand alone. In the steps below, `__GAME__` st
    powershell -NoProfile -ExecutionPolicy Bypass -File "<kit folder>\setup.ps1" -Game <game code name>
    ```
 
-   It checks Git LFS, uv, the .NET SDK and the git identity, and changes nothing until all pass. Then it moves the
+   It checks Git LFS, uv, the Unity CLI, the .NET SDK and the git identity, and changes nothing until all pass. Then it moves the
    project up if Unity Hub made `Unity/<Name>/`, finds the Unity version and the URP template, copies `template/`
-   into the repo with every placeholder replaced, adds MCP for Unity to `Unity/Packages/manifest.json` (the `main`
-   branch: the latest stable release, no version pin), and runs `Tools/setup-machine.ps1`.
+   into the repo with every placeholder replaced, adds `com.unity.pipeline` with `unity pipeline install` (the
+   Unity CLI's link to the open editor), and runs `Tools/setup-machine.ps1`.
 2. If the script stops, do what its output says and run it again. Where it says to ask me (the git identity, a
    second repo in `Unity/.git`), ask me first. If the editor is open, or there is no project, stop and tell me.
 3. Read the script's output. If the Unity version is not 6.7 (`6000.7`), tell me before you continue. Then expect
@@ -36,27 +36,22 @@ anything you write: the repo must stand alone. In the steps below, `__GAME__` st
 
 1. **First commit.** Commit the root files (`.gitattributes` must be in git before the first binary). Do not commit
    `Unity/` yet. The template's `<…>` lines are text to fill in later (steps 5, 9 and 10).
-2. **MCP for Unity.** The setup script added the package. The template's `.mcp.json` starts the server for Claude
-   Code through `Tools/unity-mcp.py`, at the version of the installed package, and `.claude/settings.json` turns it
-   on. Do not write a version number anywhere. Then stop and tell me to:
-   1. Open `Unity/` in Unity Hub (**Add > Add project from disk** if Hub still lists the old subfolder).
-   2. Restart Claude Code. If it asks to approve `unityMCP`, approve it.
-   3. Tell you to continue.
-
-   Then read `mcpforunity://instances`: it must list this project. Do not let **Window > MCP for Unity** configure a
-   client: it can write the server into Claude Desktop's config, which Claude Code does not read.
+2. **The Unity CLI.** The setup script added `com.unity.pipeline`. Stop and tell me to open `Unity/` in Unity Hub
+   (**Add > Add project from disk** if Hub still lists the old subfolder), then to tell you to continue. Then run
+   `unity status --until-ready --project-path Unity`: it must list this project as `ready`. Run
+   `unity command --detail compact` and compare the commands with `AI/AUTOMATION.md` (command map, gotchas) and the
+   `unity` entries in `.claude/settings.json`. If a name differs, correct both. Do not run `unity setup claude` or
+   `unity mcp configure`: the agent uses the CLI in a shell, not an MCP server.
 3. **Move the template's files into ours.** The URP template puts its files at the `Assets/` root, where git ignores
-   them. Over MCP (`execute_code`, `AssetDatabase.MoveAsset`, which keeps GUIDs), move `Assets/Settings` to
+   them. With `unity command script eval` (`AssetDatabase.MoveAsset`, which keeps GUIDs), move `Assets/Settings` to
    `Assets/__GAME__/Settings` and `Assets/Scenes` to `Assets/__GAME__/Scenes`. Move `InputSystem_Actions.inputactions`
    to `Assets/__GAME__/`: Universal 3D puts it at the `Assets/` root, Universal 2D in `Assets/Settings/`. Then the
    template's own content must go: `Assets/TutorialInfo` and `Assets/Readme.asset` (Universal 3D), or `Assets/Welcome`
-   (Universal 2D). `execute_code` blocks deletes (AUTOMATION.md), so ask me to delete them in the Project window, or to
-   approve one `execute_code` call with `safety_checks=false` and `MoveAssetToTrash`. After that, the `Assets/` root
-   holds only `__GAME__` (and its `.meta`).
-4. **Project settings.** Over MCP, set:
+   (Universal 2D). Ask me before you delete them with one `script eval` of `AssetDatabase.MoveAssetToTrash`. After
+   that, the `Assets/` root holds only `__GAME__` (and its `.meta`).
+4. **Project settings.** With `script eval`, set:
    - Enter Play Mode Options on, with no domain reload and no scene reload.
    - Active Input Handling: Input System Package (new) only.
-   - Run In Background on (an unfocused editor does not tick play mode without it).
    - Asset Serialization: Force Text.
    - Company name and product name: ask me.
 5. **Packages.** Remove `com.unity.ugui` (UI is UI Toolkit only), `com.unity.visualscripting`,
@@ -67,8 +62,8 @@ anything you write: the repo must stand alone. In the steps below, `__GAME__` st
    csproj files (AUTOMATION.md, rung 1 caveats). Write in `AI/PACKAGES.md` what you removed, so that I can ask for one
    back.
 6. **Our code.** The template holds three assemblies under `Assets/__GAME__/`: `Runtime`, `Editor` and
-   `Tests/EditMode`. Make the `GameConfig` asset at `Assets/__GAME__/Content/Data/GameConfig.asset` over MCP.
-   Open **__GAME__ > Design Hub** over MCP and read the console: it must open with no errors. The EditMode tests
+   `Tests/EditMode`. Make the `GameConfig` asset at `Assets/__GAME__/Content/Data/GameConfig.asset` with
+   `script eval`. Open **__GAME__ > Design Hub** with `unity command editor invoke_menu` and read the console: it must open with no errors. The EditMode tests
    include the doc rules (`DesignHubTests`, `AssetStoreTests`): they must pass from the start.
 7. **Verify.** Climb the ladder in `AI/AUTOMATION.md`, rungs 1 to 3. All must pass. Then run the clone checks in
    `AI/AUTOMATION.md` ("Does it survive a clone?").
@@ -87,7 +82,7 @@ anything you write: the repo must stand alone. In the steps below, `__GAME__` st
        `Build/` holds the banks and that `Fmod.cs` exists. Build before the next step: FMOD for Unity rejects a source
        project with no built banks.
     3. Point FMOD for Unity at the Studio project, with paths relative to `Unity/`. The setup wizard does this, and so
-       does `execute_code` (read the fields with `unity_reflect` first). The exact calls are in the FMOD section of
+       does `script eval` (reflect on the fields first). The exact calls are in the FMOD section of
        `AI/PACKAGES.md`. `FMODUnity.EditorUtils.ValidateSource` must report valid.
     4. Turn off Unity's built-in audio (`m_DisableAudio` on `ProjectSettings/AudioManager.asset`). The wizard does
        this; setup without the wizard must do it.

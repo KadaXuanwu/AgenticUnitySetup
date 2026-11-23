@@ -6,25 +6,20 @@ of each we can and cannot use.
 ## Unity packages
 
 Packages are not committed. `Packages/manifest.json` and `packages-lock.json` are, and a clone restores from them. A
-git-URL package (`com.coplaydev.unity-mcp`) is pinned by commit hash in the lock file, so every clone gets the same
-commit until someone updates it.
+git-URL package is pinned by commit hash in the lock file, so every clone gets the same commit until someone updates
+it.
 
 Removed from the URP template at setup, because nothing uses them: <filled in at setup>. Add one back when a feature
 needs it, and say so here.
 
-`com.coplaydev.unity-mcp` ships a runtime assembly (helpers its editor tools use, never called in the game) because it
-has no editor-only constraint. Remove the package before a public release (RELEASE.md).
+`com.unity.pipeline` is how the Unity CLI reaches the open editor (AUTOMATION.md). `unity pipeline install` added it
+at setup. Its command server (`Unity.Pipeline`) compiles into a player only with an `ENABLE_RUNTIME_PIPELINE` define,
+which we do not set. Its attributes (`Unity.Pipeline.Attributes`, no code that runs) and `Newtonsoft.Json` have no
+such constraint and reach a player (RELEASE.md).
 
-MCP for Unity has no version number in any file. The package URL in `manifest.json` ends in `#main`, which is the
-latest stable release (`beta` is the pre-release branch). Claude Code starts the server from the root `.mcp.json`
-through `Tools/unity-mcp.py`: it reads the version of the installed package (`Library/PackageCache`) and starts
-`mcpforunityserver` at that version, so the package and the server always match. Before Unity has resolved the
-package (a fresh clone), it starts the latest server.
-
-To update: Package Manager > MCP for Unity > Update (or delete its entry from `packages-lock.json`), let Unity
-resolve, then restart Claude Code. Read the release notes for changed tool names and fix AUTOMATION.md in the same
-pass. **Window > MCP for Unity** can write the server into Claude Desktop's config instead of Claude Code's; Claude
-Code reads only `.mcp.json`.
+To update: `unity pipeline list-versions`, then `unity pipeline upgrade --project-path Unity`. Update the CLI with
+`unity self-update`. Then compare `unity command --detail compact` with AUTOMATION.md and fix the doc and the allow
+list in `.claude/settings.json` in the same pass.
 
 ## Asset Store packages
 
@@ -44,9 +39,9 @@ overwritten our patches with the vendor's originals, and this puts them back. If
 its Root (some ship the URP template's settings), `git checkout` ours after the import and write that down here.
 
 **A fresh clone can't restore itself if our code needs a vendor package to compile.** While any assembly fails, Unity
-loads no project code, so `AssetStoreRestore` never runs. Import over MCP instead: `execute_code`
-`UnityEditor.AssetPackage.Package.Import(<cache file>, false)` per package (the call `AssetStoreRestore` uses). Each asks "Missing Signature" in a dialog: Import
-Anyway is a human click.
+loads no project code, so `AssetStoreRestore` never runs, and Safe Mode keeps the Unity CLI out too (AUTOMATION.md).
+Ask the designer to leave Safe Mode (Ignore) and import each package from Package Manager > My Assets. Each asks
+"Missing Signature" in a dialog: Import Anyway is a human click.
 
 **Adding a package:** import it, then add its entry to `AssetStore.json`. `AssetStoreTests` fails on an entry with a
 missing field, a `Root` that is not a folder at the `Assets/` root, or a `Probe` outside the `Root`. The cache file's version is in its gzip
@@ -78,7 +73,7 @@ not patched. An untracked edit in a vendor folder is invisible to git and is los
   ```
 
 - **FMOD for Unity points at the project** relative to `Unity/`: source project `../Audio/__GAME__/__GAME__.fspro`,
-  banks `../Audio/__GAME__/Build`. To set it without the setup wizard, use `execute_code` with a `SerializedObject` on
+  banks `../Audio/__GAME__/Build`. To set it without the setup wizard, use `unity command script eval` with a `SerializedObject` on
   `FMODUnity.Settings.Instance`. Set `sourceProjectPath`, `sourceBankPath`, `HasSourceProject` and `HasPlatforms`.
   Then call `FMODUnity.EventManager.RefreshBanks()`, and check with `FMODUnity.EditorUtils.ValidateSource`. This is
   what the wizard's "Locate Studio Project" does. It needs built banks: build them first.
@@ -93,4 +88,4 @@ not patched. An untracked edit in a vendor folder is invisible to git and is los
 - **Settings** live in `Unity/Assets/Resources/FMOD/FMODStudioSettings.asset`, whitelisted in `Unity/.gitignore`;
   `FMODStudioCache.asset` beside it is rebuilt. FMOD 2.04 and later is a UPM package and puts nothing in
   `Assets/Plugins/`. Unity's built-in audio is off (`m_DisableAudio` on `ProjectSettings/AudioManager.asset`), on
-  purpose. The setup wizard turns it off; setup without the wizard must turn it off over `execute_code`.
+  purpose. The setup wizard turns it off; setup without the wizard must turn it off with `unity command script eval`.

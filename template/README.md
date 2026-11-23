@@ -21,10 +21,11 @@
 
 ### Claude Code on a fresh clone
 
-`CLAUDE.md`, `AI/`, `.claude/settings.json` and `.mcp.json` are committed, so the working agreement, the knowledge
-base and the Unity MCP server registration come with the repo. Claude Code starts the server with `uv`, so install
-[uv](https://docs.astral.sh/uv/) once per machine. The server follows the installed MCP for Unity package by itself
-(AI/PACKAGES.md). Without MCP everything still works, minus driving the editor headlessly.
+`CLAUDE.md`, `AI/` and `.claude/settings.json` are committed, so the working agreement and the knowledge base come
+with the repo. Install two tools once per machine: the Unity CLI (`irm https://unity.com/install.ps1 | iex`), with
+which the agent drives the open editor through the project's `com.unity.pipeline` package, and
+[uv](https://docs.astral.sh/uv/), which runs the compile hook. Without the CLI everything still works, minus driving
+the editor headlessly.
 
 ```bash
 dotnet build Unity/Unity.slnx -v q --nologo
